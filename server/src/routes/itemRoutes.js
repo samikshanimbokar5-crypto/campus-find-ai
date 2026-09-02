@@ -1,0 +1,17 @@
+import { Router } from 'express';
+import multer from 'multer';
+import path from 'node:path';
+import { requireAuth } from '../middleware/auth.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { createItem, listItems, getItem, myItems, updateItem, resolveItem, itemMatches } from '../controllers/itemController.js';
+const upload = multer({ dest: path.resolve('uploads/'), limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: (req, file, cb) => cb(null, ['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) });
+const router = Router();
+router.use(requireAuth);
+router.get('/', asyncHandler(listItems));
+router.get('/mine', asyncHandler(myItems));
+router.post('/:type', upload.single('image'), asyncHandler(createItem));
+router.get('/:id/matches', asyncHandler(itemMatches));
+router.patch('/:id/resolve', asyncHandler(resolveItem));
+router.patch('/:id', asyncHandler(updateItem));
+router.get('/:id', asyncHandler(getItem));
+export default router;
