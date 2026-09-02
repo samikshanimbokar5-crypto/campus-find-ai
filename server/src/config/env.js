@@ -1,6 +1,9 @@
 import 'dotenv/config';
 
 const required = ['JWT_SECRET'];
+if (process.env.NODE_ENV === 'production' && !process.env.MONGODB_URI) {
+  required.push('MONGODB_URI');
+}
 for (const name of required) {
   if (!process.env[name]) throw new Error(`${name} is required`);
 }
