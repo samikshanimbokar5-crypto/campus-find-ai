@@ -28,7 +28,15 @@ export async function generateMatches(item) {
     if (result.overallScore < 35) continue;
     const match = await Match.findOneAndUpdate({ lostItem: lostItem._id, foundItem: foundItem._id }, { ...result }, { upsert: true, new: true, setDefaultsOnInsert: true });
     if (result.overallScore >= 60) {
-      await Notification.create({ user: lostItem.owner, title: 'Possible match found', message: 'A report closely matches your item. Review it before contacting the other reporter.', type: 'MATCH', relatedItem: lostItem._id, relatedMatch: match._id });
+      const recipients = [
+        { user: lostItem.owner, item: lostItem, message: 'A found-item report may match your lost item. Review the private match in-app.' },
+        { user: foundItem.owner, item: foundItem, message: 'A lost-item report may match the item you found. Review the private match in-app.' }
+      ];
+      for (const recipient of recipients) {
+        if (!await Notification.exists({ user: recipient.user, relatedMatch: match._id, type: 'MATCH' })) {
+          await Notification.create({ user: recipient.user, title: 'Possible match found', message: recipient.message, type: 'MATCH', relatedItem: recipient.item._id, relatedMatch: match._id });
+        }
+      }
     }
   }
 }
