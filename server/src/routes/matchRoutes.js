@@ -7,12 +7,12 @@ const router = Router();
 router.use(requireAuth);
 router.get('/', asyncHandler(async (req, res) => {
   const ownedItems = await Item.find({ owner: req.user.id }).distinct('_id');
-  const matches = await Match.find({ $or: [{ lostItem: { $in: ownedItems } }, { foundItem: { $in: ownedItems } }] }).populate('lostItem foundItem');
+  const matches = await Match.find({ status: 'POSSIBLE', $or: [{ lostItem: { $in: ownedItems } }, { foundItem: { $in: ownedItems } }] }).populate('lostItem foundItem', 'title type category color status owner');
   res.json({ success: true, data: matches });
 }));
 router.get('/:id', asyncHandler(async (req, res) => {
   const ownedItems = await Item.find({ owner: req.user.id }).distinct('_id');
-  const match = await Match.findOne({ _id: req.params.id, $or: [{ lostItem: { $in: ownedItems } }, { foundItem: { $in: ownedItems } }] }).populate('lostItem foundItem');
+  const match = await Match.findOne({ _id: req.params.id, status: 'POSSIBLE', $or: [{ lostItem: { $in: ownedItems } }, { foundItem: { $in: ownedItems } }] }).populate('lostItem foundItem', 'title type category color status owner');
   if (!match) return res.status(404).json({ success: false, message: 'Match not found.' });
   res.json({ success: true, data: match });
 }));

@@ -9,8 +9,10 @@ const itemSchema = new mongoose.Schema({
   color: { type: String, trim: true, index: true },
   location: { type: String, required: true, trim: true, index: true },
   date: { type: Date, required: true, index: true },
+  lossReason: { type: String, enum: ['LEFT_BEHIND', 'DROPPED', 'MISPLACED', 'STOLEN', 'OTHER'] },
   imageUrl: String,
-  status: { type: String, enum: ['ACTIVE', 'RESOLVED', 'FLAGGED'], default: 'ACTIVE', index: true },
+  status: { type: String, enum: ['ACTIVE', 'RECOVERED', 'RESOLVED', 'FLAGGED'], default: 'ACTIVE', index: true },
+  recoveredAt: Date,
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   aiAttributes: { type: mongoose.Schema.Types.Mixed, default: {} }
 }, { timestamps: true });
