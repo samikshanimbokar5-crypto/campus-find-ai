@@ -14,5 +14,6 @@ export const env = {
   mongoUri: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/campusfind_ai',
   jwtSecret: process.env.JWT_SECRET,
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
-  aiApiKey: process.env.AI_API_KEY || ''
+  aiApiKey: process.env.AI_API_KEY || '',
+  aiModel: process.env.AI_MODEL || 'gemini-2.0-flash'
 };

@@ -15,3 +15,5 @@ services:
         sync: false
       - key: CLIENT_URL
         sync: false
+      - key: AI_API_KEY
+        sync: false

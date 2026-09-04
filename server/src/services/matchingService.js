@@ -7,19 +7,56 @@ const words = (value = '') => new Set(value.toLowerCase().split(/[^a-z0-9]+/).fi
 const overlap = (a, b) => { const left = words(a); const right = words(b); if (!left.size || !right.size) return 0; return [...left].filter(word => right.has(word)).length / Math.max(left.size, right.size); };
 const exact = (a, b) => a && b && a.toLowerCase() === b.toLowerCase() ? 1 : overlap(a, b);
 const dateScore = (a, b) => Math.max(0, 1 - Math.abs(new Date(a) - new Date(b)) / (1000 * 60 * 60 * 24 * 30));
+const aiText = attributes => [attributes?.semanticDescription, ...(attributes?.keywords || [])].filter(Boolean).join(' ');
+
+async function enrichWithGemini(item) {
+  if (!process.env.AI_API_KEY) return item;
+
+  const model = process.env.AI_MODEL || 'gemini-2.0-flash';
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(process.env.AI_API_KEY)}`;
+  const prompt = `Analyze this campus lost-and-found report. Return JSON only with these keys: normalizedCategory, normalizedColor, normalizedLocation, keywords (array of short strings), semanticDescription (one short sentence). Do not invent details. Report: ${JSON.stringify({ title: item.title, description: item.description, category: item.category, brand: item.brand, color: item.color, location: item.location })}`;
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }] })
+  });
+  if (!response.ok) throw new Error(`Gemini request failed with ${response.status}`);
+  const payload = await response.json();
+  const text = payload.candidates?.[0]?.content?.parts?.map(part => part.text || '').join('').trim();
+  if (!text) throw new Error('Gemini returned no analysis');
+  const json = text.replace(/^```json\s*/i, '').replace(/\s*```$/, '');
+  const attributes = JSON.parse(json);
+  const safeAttributes = {
+    normalizedCategory: String(attributes.normalizedCategory || '').slice(0, 120),
+    normalizedColor: String(attributes.normalizedColor || '').slice(0, 80),
+    normalizedLocation: String(attributes.normalizedLocation || '').slice(0, 160),
+    keywords: Array.isArray(attributes.keywords) ? attributes.keywords.filter(Boolean).map(String).slice(0, 20) : [],
+    semanticDescription: String(attributes.semanticDescription || '').slice(0, 500)
+  };
+  item.aiAttributes = safeAttributes;
+  await Item.findByIdAndUpdate(item._id, { aiAttributes: safeAttributes });
+  return item;
+}
 
 function scorePair(item, candidate) {
+  const itemAi = item.aiAttributes || {};
+  const candidateAi = candidate.aiAttributes || {};
   const scores = {
-    description: overlap(`${item.title} ${item.description} ${item.brand}`, `${candidate.title} ${candidate.description} ${candidate.brand}`),
-    category: exact(item.category, candidate.category), color: exact(item.color, candidate.color),
-    location: overlap(item.location, candidate.location), date: dateScore(item.date, candidate.date)
+    description: overlap(`${item.title} ${item.description} ${item.brand} ${aiText(itemAi)}`, `${candidate.title} ${candidate.description} ${candidate.brand} ${aiText(candidateAi)}`),
+    category: exact(itemAi.normalizedCategory || item.category, candidateAi.normalizedCategory || candidate.category),
+    color: exact(itemAi.normalizedColor || item.color, candidateAi.normalizedColor || candidate.color),
+    location: overlap(itemAi.normalizedLocation || item.location, candidateAi.normalizedLocation || candidate.location),
+    date: dateScore(item.date, candidate.date)
   };
   const overallScore = Math.round(Object.entries(weights).reduce((total, [key, weight]) => total + scores[key] * weight, 0) * 100);
-  const explanation = Object.entries(scores).filter(([, value]) => value >= 0.55).map(([key]) => ({ description: 'similar identifying details', category: 'same category', color: 'similar color', location: 'nearby location', date: 'close report dates' })[key]);
+  const explanation = Object.entries(scores).filter(([, value]) => value >= 0.55).map(([key]) => ({ description: itemAi.semanticDescription || candidateAi.semanticDescription ? 'AI found similar identifying details' : 'similar identifying details', category: 'same category', color: 'similar color', location: 'nearby location', date: 'close report dates' })[key]);
   return { overallScore, scores: Object.fromEntries(Object.entries(scores).map(([key, value]) => [key, Math.round(value * 100)])), explanation };
 }
 
 export async function generateMatches(item) {
+  if (process.env.AI_API_KEY) {
+    try { await enrichWithGemini(item); } catch (error) { console.error('AI enrichment failed; using baseline matching:', error.message); }
+  }
   const candidates = await Item.find({ type: item.type === 'LOST' ? 'FOUND' : 'LOST', status: 'ACTIVE', _id: { $ne: item._id } }).limit(100);
   for (const candidate of candidates) {
     const lostItem = item.type === 'LOST' ? item : candidate;

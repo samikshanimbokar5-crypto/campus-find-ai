@@ -34,12 +34,12 @@ React, Vite, React Router, Axios, CSS, Node.js, Express, Mongoose, MongoDB Atlas
 
 ## Local setup
 
-1. Copy `.env.example` to `.env` and set `JWT_SECRET` and `MONGODB_URI`.
+1. Copy `.env.example` to `.env` and set `JWT_SECRET` and `MONGODB_URI`. To enable real AI enrichment, also set `AI_API_KEY` to a Gemini API key. The matching engine works without it using the deterministic fallback.
 2. Install and run the API: `cd server`, `npm install`, `npm run dev`.
 3. In another terminal run the client: `cd client`, `npm install`, `npm run dev`.
 4. Open the Vite URL, normally `http://localhost:5173`.
 
-Client environment: `VITE_API_URL=http://localhost:5000/api`.
+Client environment: `VITE_API_URL=http://localhost:5000/api`. Keep `AI_API_KEY` only on the server; never add it to the client environment.
 
 ## API overview
 
@@ -60,7 +60,7 @@ With MongoDB running, use `cd server; node src/seed.js`. Demo credentials: `demo
 
 ## Deployment
 
-Deployment manifests are included in `render.yaml` and `client/vercel.json`. In Render, create the service from `render.yaml` and set `MONGODB_URI` and `CLIENT_URL`. In Vercel, import the repository with root directory `client`, build command `npm run build`, output directory `dist`, and `VITE_API_URL` set to the Render API URL. Add the final Vercel URL back to Render as `CLIENT_URL`.
+Deployment manifests are included in `render.yaml` and `client/vercel.json`. In Render, create the service from `render.yaml` and set `MONGODB_URI`, `CLIENT_URL`, and `AI_API_KEY`. In Vercel, import the repository with root directory `client`, build command `npm run build`, output directory `dist`, and `VITE_API_URL` set to the Render API URL. Add the final Vercel URL back to Render as `CLIENT_URL`.
 
 ## Security
 
