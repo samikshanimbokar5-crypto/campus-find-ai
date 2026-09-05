@@ -9,7 +9,7 @@ export async function createItem(req, res) {
   const type = req.params.type.toUpperCase();
   if (!['LOST', 'FOUND'].includes(type)) throw new ApiError(400, 'Item type must be lost or found.');
   const item = await Item.create({ title, description, category, brand, color, location, date, lossReason: type === 'LOST' && lossReason ? lossReason : undefined, type, owner: req.user.id, imageUrl: req.file ? req.file.filename : undefined });
-  generateMatches(item).catch(error => console.error('Matching failed:', error.message));
+  await generateMatches(item);
   res.status(201).json({ success: true, data: item });
 }
 
